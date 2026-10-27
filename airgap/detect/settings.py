@@ -9,11 +9,40 @@ for that part and a note saying so, instead of silently detecting nothing. An ex
 from __future__ import annotations
 
 import copy
+import re
 from importlib import resources
 
 import yaml
 
 _KEYS = ("pii_markers", "human_facing_types", "severity")
+
+
+def _validated_name_patterns(value: object) -> dict[str, str]:
+    """`detection.name_patterns`: label -> regex, off when absent or empty."""
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise DetectionConfigError(
+            "config key 'detection.name_patterns' must be a mapping of label to regex"
+        )
+    out: dict[str, str] = {}
+    for label, pattern in value.items():
+        if not isinstance(label, str) or not label.strip():
+            raise DetectionConfigError(
+                "config key 'detection.name_patterns' must use non-empty string labels"
+            )
+        if not isinstance(pattern, str) or not pattern.strip():
+            raise DetectionConfigError(
+                f"config key 'detection.name_patterns.{label}' must be a non-empty regex"
+            )
+        try:
+            re.compile(pattern)
+        except re.error as exc:
+            raise DetectionConfigError(
+                f"config key 'detection.name_patterns.{label}' is not a valid regex: {exc}"
+            ) from None
+        out[label.strip()] = pattern
+    return out
 
 
 class DetectionConfigError(ValueError):
@@ -60,4 +89,5 @@ def detection_settings(cfg: dict) -> tuple[dict, list[str]]:
             "detected as PII; list at least one marker or remove the key to use the "
             "defaults"
         )
+    det["name_patterns"] = _validated_name_patterns(det.get("name_patterns"))
     return det, notes

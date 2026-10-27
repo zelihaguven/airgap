@@ -18,7 +18,7 @@ class Severity:
 @dataclass
 class Finding:
     id: str
-    rule: str  # R1 | R2
+    rule: str  # R1 | R2 | R3
     title: str
     severity: str
     asset_urn: str

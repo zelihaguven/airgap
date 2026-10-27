@@ -308,7 +308,7 @@ flowchart LR
     GMS --> G
     G["MetadataGraph<br/>airgap/model.py"] --> D
     CFG --> D
-    D["Deterministic rules R1 and R2<br/>plus blast-radius severity<br/>airgap/detect/"] --> F[("Findings")]
+    D["Deterministic rules R1 and R2<br/>(plus opt-in R3)<br/>and blast-radius severity<br/>airgap/detect/"] --> F[("Findings")]
     F -. "optional: facts of each finding" .-> LLM["Ollama /api/generate<br/>localhost:11434 by default"]
     LLM -. "explanation text only" .-> F
     F --> J["findings.json"]
@@ -323,9 +323,10 @@ flowchart LR
   column-level lineage edges.
 - **Model** ([`airgap/model.py`](airgap/model.py)) is the source-agnostic
   contract. Adding a source means producing this graph, nothing else.
-- **Detection** ([`airgap/detect/`](airgap/detect)) applies R1 and R2 and
-  scores severity using only the graph and the config. The same input always
-  gives the same findings, and the rules are covered by regression tests.
+- **Detection** ([`airgap/detect/`](airgap/detect)) applies R1 and R2 (plus
+  the opt-in R3) and scores severity using only the graph and the config.
+  The same input always gives the same findings, and the rules are covered
+  by regression tests.
 - **Explanations** ([`airgap/llm/`](airgap/llm)) are optional. For each
   finding, Airgap sends its rule, asset, leaked fields, evidence and blast
   radius to the configured Ollama endpoint and stores the reply in

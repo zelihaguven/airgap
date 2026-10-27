@@ -44,6 +44,10 @@ detection:
   human_facing_types:
     - dashboard
     - chart
+  # Optional, off by default: name-based candidates for columns nobody has
+  # classified (R3). Map a label to a regex matched against each dot-separated
+  # field-name segment, case-insensitively. R3 never feeds R1 or R2.
+  name_patterns: {}
   # Severity thresholds by blast radius (number of downstream consumers).
   severity:
     critical_blast_radius: 3

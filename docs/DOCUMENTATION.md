@@ -54,7 +54,8 @@ that runs entirely locally.
 - **Reads DataHub metadata**: datasets, schema fields, field-level tags &
   glossary terms, dataset-level tags, ownership, and dataset- and column-level
   lineage.
-- **Detects governance leaks** with two deterministic rules (R1 and R2, see §6).
+- **Detects governance leaks** with two deterministic lineage rules (R1 and R2)
+  and an opt-in name-based rule (R3, see §6).
 - **Scores severity by blast radius**, meaning how many downstream consumers
   a leak reaches, escalating to CRITICAL when PII reaches human-facing BI
   (dashboards, charts).
@@ -112,7 +113,8 @@ Step by step:
 1. **Fetch.** A `MetadataSource` (`FixtureSource` or `DataHubSource`) returns a
    fully normalized `MetadataGraph`. Both sources produce the identical shape,
    so nothing downstream knows or cares where the metadata came from.
-2. **Detect.** `run_rules()` applies R1 and R2 over the graph, computing
+2. **Detect.** `run_rules()` applies R1, R2 and (when configured) R3 over the
+   graph, computing
    evidence (the column-level lineage path for R1, a one-line reason for R2)
    and a blast-radius severity for each finding. This is
    plain, unit-tested Python, and **no LLM is involved in deciding a finding.**
@@ -225,6 +227,29 @@ Example evidence:
 A dataset that holds sensitive data (directly, or by receiving it through
 lineage from a classified source) has **no owner**, so nobody is accountable.
 
+### R3: Likely-unclassified PII by column name (opt-in)
+A field whose **name** looks like personal data but carries no marker: a name
+candidate, not a finding about data. Off unless `detection.name_patterns` is
+configured; when on, every dot-separated segment of `Field.path` is compared
+against each label's regex with `re.fullmatch` (case-insensitive), so
+`profiles.email` matches `email` while a counter such as
+`email_opt_in_count` does not. Findings are reported at **LOW** severity and
+never become lineage origins, so a name guess cannot make R1 or R2 fire.
+
+```yaml
+detection:
+  name_patterns:
+    email: "e?mail(_?address)?"
+    phone: "(phone|mobile|gsm)(_?number)?"
+    national_id: "(tckn|ssn|national_?id)"
+    iban: "iban"
+    ip_address: "(ip|ip_?address)"
+    date_of_birth: "(date_?of_?birth|dob|birth_?date)"
+```
+
+Keep the patterns anchored by writing them for a whole segment;
+`re.fullmatch` already rejects a partial name.
+
 ### Severity (blast radius)
 Severity is driven by the transitive downstream consumers of the offending
 asset:
@@ -232,6 +257,7 @@ asset:
   visible to real users, or blast radius ≥ configured threshold.
 - **HIGH**: has downstream consumers, but none human-facing.
 - **MEDIUM**: internal only, no downstream consumers yet.
+- **LOW**: R3 name candidates; they never feed R1 or R2.
 
 All thresholds and the PII marker vocabulary are configurable in `config.yaml`.
 
@@ -265,7 +291,7 @@ airgap/
 │   └── fixture.py      synthetic-fixture source
 ├── detect/
 │   ├── findings.py     Finding model, marker matching, severity scoring
-│   └── rules.py        R1 + R2 detection
+│   └── rules.py        R1 + R2 + opt-in R3 detection
 ├── llm/ollama.py       local explanation layer
 ├── report/
 │   ├── findings_json.py  findings.json (versioned)

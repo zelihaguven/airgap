@@ -10,11 +10,16 @@ Rules implemented:
       equivalent classification.
   R2  Ownerless sensitive asset — a dataset that holds sensitive data (directly
       or by lineage) has no owner, so nobody is accountable for it.
+  R3  Likely-unclassified PII by column name — opt-in, and never a lineage
+      origin for R1/R2 (config `detection.name_patterns`).
 """
 from __future__ import annotations
 
+import re
+
 from airgap.detect.findings import (
     Finding,
+    Severity,
     is_sensitive,
     score_severity,
     sort_key,
@@ -221,6 +226,60 @@ def rule_r2(graph: MetadataGraph, cfg: dict, pii_set: set[str]) -> list[Finding]
     return findings
 
 
+def _name_match(field_path: str, patterns: dict[str, re.Pattern]) -> str | None:
+    """Label of the first pattern that fully matches a dot-separated segment."""
+    for segment in field_path.split("."):
+        if not segment:
+            continue
+        for label, regex in patterns.items():
+            if regex.fullmatch(segment):
+                return label
+    return None
+
+
+def rule_r3(graph: MetadataGraph, cfg: dict) -> list[Finding]:
+    """Opt-in R3: columns whose *name* looks like PII but carries no marker.
+
+    It is deliberately informational: the finding never becomes an origin for
+    R1/R2, so an unconfirmed name guess cannot taint the lineage rules.
+    """
+    patterns = (cfg.get("detection") or {}).get("name_patterns") or {}
+    if not patterns:
+        return []
+    compiled = {
+        label: re.compile(pattern, re.IGNORECASE) for label, pattern in patterns.items()
+    }
+    findings: list[Finding] = []
+    idx = 0
+    for ds in graph.datasets():
+        matched = [(f.path, _name_match(f.path, compiled)) for f in ds.fields]
+        matched = [(path, label) for path, label in matched if label]
+        if not matched:
+            continue
+        idx += 1
+        findings.append(
+            Finding(
+                id=f"AIRGAP-R3-{idx:03d}",
+                rule="R3",
+                title=f"Possibly unclassified PII by column name in {ds.name}",
+                severity=Severity.LOW,
+                asset_urn=ds.urn,
+                asset_name=ds.name,
+                leaked_fields=[path for path, _label in matched],
+                evidence=[
+                    f"{ds.name}.{path} matches the '{label}' name pattern."
+                    for path, label in matched
+                ],
+                remediation=(
+                    "Confirm whether these columns hold personal data and, when "
+                    "they do, apply the PII/Sensitive classification so R1 and R2 "
+                    "can see them."
+                ),
+            )
+        )
+    return findings
+
+
 def run_rules(graph: MetadataGraph, cfg: dict) -> list[Finding]:
     from airgap.detect.findings import normalize_markers
     from airgap.detect.settings import detection_settings
@@ -228,6 +287,10 @@ def run_rules(graph: MetadataGraph, cfg: dict) -> list[Finding]:
     det, _notes = detection_settings(cfg)  # missing keys fall back to the defaults
     cfg = {**cfg, "detection": det}
     pii_set = normalize_markers(det["pii_markers"])
-    findings = rule_r1(graph, cfg, pii_set) + rule_r2(graph, cfg, pii_set)
+    findings = (
+        rule_r1(graph, cfg, pii_set)
+        + rule_r2(graph, cfg, pii_set)
+        + rule_r3(graph, cfg)
+    )
     findings.sort(key=sort_key)
     return findings
