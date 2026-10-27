@@ -14,6 +14,9 @@ looks like.
   points it at, plus Ollama on localhost.
 - **No real data in the repo.** Fixtures, examples and test data must be
   synthetic. Never commit real catalog metadata, tokens or credentials.
+- **Be respectful.** Everyone taking part follows the
+  [Code of Conduct](CODE_OF_CONDUCT.md). Report security problems as described
+  in [SECURITY.md](SECURITY.md), not in a public issue.
 
 ## Dev setup
 
