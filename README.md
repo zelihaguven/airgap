@@ -52,7 +52,7 @@ package, so this works from any empty directory, fully offline:
 airgap audit --no-llm
 ```
 
-Real output from v0.1.0 (run in `/tmp/airgap-demo`):
+Real output from v0.2.0 (run in `/tmp/airgap-demo`):
 
 ```text
   · Config: bundled default (airgap/data/config.yaml)
@@ -199,6 +199,7 @@ The line `· Config: ...` in the output tells you which one was used. Copy
 | `ollama.url`, `ollama.model`, `ollama.timeout_seconds` | `http://localhost:11434`, `qwen2.5:7b`, `120` | Local explanation model. |
 | `ollama.enabled` | `true` | Set `false` (or pass `--no-llm`) to skip explanations. |
 | `detection.pii_markers` | `PII`, `Sensitive`, `Email`, ... | Tags or glossary terms that mark a field or dataset as sensitive. Matching is case-insensitive, and a dotted marker such as `Classification.Sensitive` also matches its last segment (`Sensitive`). |
+| `detection.name_patterns` | `{}` (off) | (unreleased, coming in 0.3) Map of label to regex for the opt-in R3 rule. Each dot-separated segment of a field name is matched with `re.fullmatch`, case-insensitively. Empty or absent turns R3 off. |
 | `detection.human_facing_types` | `dashboard`, `chart` | Downstream entity types that make a finding CRITICAL. |
 | `detection.severity.critical_blast_radius` | `3` | Blast radius at or above which a finding is CRITICAL. |
 | `detection.severity.high_blast_radius` | `1` | Blast radius at or above which a finding is HIGH. |
@@ -266,6 +267,7 @@ The `fixture` and `datahub-lite` paths are the ones exercised end to end today.
 |---|---|
 | **R1: untagged PII propagation** | A sensitive field reaches, through column-level lineage, a downstream field that has no sensitive marker on a dataset that has no sensitive tag. Leaked fields are grouped into one finding per downstream dataset. |
 | **R2: ownerless sensitive asset** | A dataset with no owner that either carries a sensitive marker itself or receives sensitive fields through column-level lineage. |
+| **R3: PII candidate by column name** (unreleased, coming in 0.3) | Opt-in, off unless `detection.name_patterns` is set. A field whose name has a dot-separated segment that fully matches one of the configured regexes. Matches are grouped into one LOW finding per dataset and never feed R1 or R2. |
 
 R1 starts from **PII origins**: sensitive fields with no sensitive upstream
 field. It walks column-level lineage breadth-first from each origin and
@@ -313,6 +315,7 @@ flowchart LR
     LLM -. "explanation text only" .-> F
     F --> J["findings.json"]
     F --> M["report.md"]
+    F --> S["findings.sarif<br/>with --format sarif"]
     F --> H["lineage_graph.html"]
     F --> P["patches/*.py<br/>reviewable DataHub SDK scripts"]
 ```
@@ -333,7 +336,7 @@ flowchart LR
   `explanation`. The model never adds, removes or rescores findings, and if
   Ollama is unreachable the run continues without it.
 - **Reports and remediation** ([`airgap/report/`](airgap/report),
-  [`airgap/remediate/`](airgap/remediate)) write the four outputs above.
+  [`airgap/remediate/`](airgap/remediate)) write the outputs above.
 - **CLI** ([`airgap/cli.py`](airgap/cli.py)) resolves the config, applies
   flag overrides and wires the steps together.
 
@@ -354,27 +357,53 @@ python3 -m venv .venv
 ./.venv/bin/python -m pytest -v
 ```
 
-The tests pin the expected findings on the Acme catalog
-([`tests/test_detection.py`](tests/test_detection.py)) and the config and
-output-directory defaults of the CLI
-([`tests/test_cli_defaults.py`](tests/test_cli_defaults.py)). CI runs them on
-Python 3.10, 3.11 and 3.12 on every push and pull request, followed by an
-offline smoke run of `airgap audit --no-llm`.
+The suite has 140 tests in 16 files under [`tests/`](tests). They need no
+running DataHub, no Ollama and no network access: GMS responses are synthetic
+GraphQL payloads, and the DataHub Lite tests use inline export data or a fake
+`datahub` executable. The files cover:
 
-**Scenario test report: coming soon (to be added after the current test run).**
+- **Detection**: the expected findings on the Acme catalog
+  ([`test_detection.py`](tests/test_detection.py)), config validation and
+  defaults ([`test_detection_settings.py`](tests/test_detection_settings.py)),
+  the opt-in R3 rule ([`test_name_patterns.py`](tests/test_name_patterns.py))
+  and the lineage index ([`test_model_index.py`](tests/test_model_index.py)).
+- **Sources**: the GMS parser and lineage paging
+  ([`test_sources_datahub.py`](tests/test_sources_datahub.py),
+  [`test_gms_lineage.py`](tests/test_gms_lineage.py),
+  [`test_gms_column_lineage.py`](tests/test_gms_column_lineage.py)) and the
+  DataHub Lite reader
+  ([`test_sources_datahub_lite.py`](tests/test_sources_datahub_lite.py),
+  [`test_datahub_lite_export.py`](tests/test_datahub_lite_export.py)).
+- **Scenarios** from the v0.1.0 QA campaign
+  ([`test_scenarios.py`](tests/test_scenarios.py)), which run a real source
+  and the rules on small DataHub-shaped catalogs.
+- **CLI and outputs**: config and output-directory defaults
+  ([`test_cli_defaults.py`](tests/test_cli_defaults.py)), `--version`,
+  readable errors and the token variable
+  ([`test_cli_errors.py`](tests/test_cli_errors.py)), versioned
+  `findings.json`, SARIF, `--format` and `--fail-on`
+  ([`test_output_formats.py`](tests/test_output_formats.py)), remediation
+  patches ([`test_patches.py`](tests/test_patches.py)), LLM error handling
+  ([`test_llm.py`](tests/test_llm.py)) and packaging metadata
+  ([`test_packaging.py`](tests/test_packaging.py)).
+
+The two SARIF schema checks in `test_output_formats.py` are skipped when
+`jsonschema` is not installed; the `dev` extra installs it. CI runs the suite
+on Python 3.10, 3.11 and 3.12 on every push and pull request, followed by an
+offline smoke run of `airgap audit --no-llm`.
 
 ## Contributing and roadmap
 
 Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) for
-the dev setup and pull request conventions. Planned work is in the
-[v0.2 milestone](https://github.com/zelihaguven/airgap/milestone/1), and
-issues labeled
+the dev setup and pull request conventions. Planned work is tracked
+in the [milestones](https://github.com/zelihaguven/airgap/milestones), with
+v0.3 planning next, and issues labeled
 [`good first issue`](https://github.com/zelihaguven/airgap/labels/good%20first%20issue)
 are a good place to begin. Release history is in [CHANGELOG.md](CHANGELOG.md).
 
 ### What may change
 
-Airgap started as a project for a DataHub hackathon. Its detection code
+Airgap's detection code
 ([`airgap/detect/`](airgap/detect/) and [`airgap/model.py`](airgap/model.py))
 does not import DataHub or its SDK (its model only follows DataHub's URN
 shape), and besides DataHub Lite and GMS it already reads a JSON catalog file

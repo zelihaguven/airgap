@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Opt-in rule R3 reports columns whose name looks like personal data, set
+  with `detection.name_patterns` (a map of label to regex). Off by default.
+  Matches are LOW severity, grouped per dataset, and never feed R1 or R2
+  (#47, fixes #7).
+- Unit tests for the GMS and DataHub Lite source parser helpers, with
+  synthetic payloads and no network (#46, fixes #8).
+
+### Contributors
+
+Thanks to @bfs2021 (#46, #47).
+
 ## [0.2.0] - 2026-10-25
 
 Bug fixes from the v0.1.0 QA campaign, a faster DataHub Lite read, readable

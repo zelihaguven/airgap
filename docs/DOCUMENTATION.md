@@ -1,7 +1,7 @@
 # Airgap Technical Documentation
 
 > Local-first data governance & PII lineage auditor for DataHub.
-> Built for the DataHub Agent Hackathon (Wildcard / Regulatory Automation).
+> Started at the DataHub Agent Hackathon (Wildcard / Regulatory Automation), now maintained independently.
 
 This document explains **what Airgap is, the problem it solves, how it works
 end to end, and exactly how DataHub is integrated.**
