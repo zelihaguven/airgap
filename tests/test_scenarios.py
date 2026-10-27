@@ -9,7 +9,6 @@ from __future__ import annotations
 import json
 import os
 
-import pytest
 import yaml
 
 from airgap.detect import run_rules
@@ -150,7 +149,9 @@ def _fake_gms(monkeypatch, src: DataHubSource, datasets: dict, lineage: dict):
 
 
 def _gms_dataset(name, fields, owners=(), tags=(), fgl=None):
-    tag = lambda t, props: {"tag": {"urn": f"urn:li:tag:{t}", "properties": props(t)}}
+    def tag(t, props):
+        return {"tag": {"urn": f"urn:li:tag:{t}", "properties": props(t)}}
+
     return {
         "urn": _urn(name), "name": name, "platform": {"name": "snowflake"},
         "tags": {"tags": [tag(t, lambda _: None) for t in tags]},

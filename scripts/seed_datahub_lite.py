@@ -13,7 +13,6 @@ fully local (DataHub Lite is a local DuckDB-backed instance).
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
 
