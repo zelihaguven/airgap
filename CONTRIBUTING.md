@@ -14,6 +14,9 @@ looks like.
   points it at, plus Ollama on localhost.
 - **No real data in the repo.** Fixtures, examples and test data must be
   synthetic. Never commit real catalog metadata, tokens or credentials.
+- **Be respectful.** Everyone taking part follows the
+  [Code of Conduct](CODE_OF_CONDUCT.md). Report security problems as described
+  in [SECURITY.md](SECURITY.md), not in a public issue.
 
 ## Dev setup
 
@@ -47,6 +50,14 @@ run of the CLI:
 ./.venv/bin/airgap audit --no-llm --out /tmp/airgap-out
 ```
 
+CI also lints the code with [ruff](https://docs.astral.sh/ruff/), which the
+`dev` extra installs. The rules are set in `pyproject.toml`. Run it before you
+push:
+
+```bash
+./.venv/bin/python -m ruff check .
+```
+
 The tests in `tests/test_detection.py` pin the expected findings for the Acme
 fixture. If you change a rule or the fixture on purpose, update the
 assertions in the same PR and explain why in the description.
@@ -71,7 +82,7 @@ To check the package build:
   case that triggers them and one that must not.
 - Add a line under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md) for
   user-visible changes.
-- Make sure `pytest` passes locally before you ask for review.
+- Make sure `pytest` and `ruff check .` pass locally before you ask for review.
 - Fill in the pull request template.
 
 ## Reporting bugs and requesting features

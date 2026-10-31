@@ -8,11 +8,10 @@ leaves the machine. This is what makes Airgap safe to run on real catalogs.
 from __future__ import annotations
 
 import json
-import urllib.request
 import urllib.error
+import urllib.request
 
 from airgap.detect.findings import Finding
-
 
 _PROMPT = """You are a data-governance analyst. Explain the following finding to a \
 data protection officer in 2-3 short sentences: what is wrong, why it is a \

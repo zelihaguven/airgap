@@ -44,7 +44,7 @@ Changelog = "https://github.com/zelihaguven/airgap/blob/main/CHANGELOG.md"
 # acryl-datahub 1.7.0.14 the datahub-lite extra no longer pulls in DuckDB;
 # it comes from the separate duckdb extra.
 datahub-lite = ["acryl-datahub[datahub-lite,duckdb]>=1.6.0"]
-dev = ["pytest>=7.0", "jsonschema>=4.0"]
+dev = ["pytest>=7.0", "jsonschema>=4.0", "ruff>=0.17,<0.18"]
 
 [project.scripts]
 airgap = "airgap.cli:main"
@@ -56,3 +56,14 @@ include = ["airgap*"]
 # Default config and the synthetic demo catalog, so a pip-installed
 # `airgap audit` works out of the box.
 "airgap.data" = ["config.yaml", "acme_datalake.json"]
+
+[tool.ruff]
+# Matches the existing code: no line is longer than 110 characters.
+line-length = 110
+target-version = "py310"
+# examples/patches/*.py are sample outputs of `airgap audit`, kept as generated.
+extend-exclude = ["examples"]
+
+[tool.ruff.lint]
+# pycodestyle errors, Pyflakes and import sorting.
+select = ["E", "F", "I"]

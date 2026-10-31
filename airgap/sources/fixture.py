@@ -16,7 +16,6 @@ from airgap.errors import AirgapError
 from airgap.model import Asset, Field, FieldLineage, LineageEdge, MetadataGraph
 from airgap.sources.base import MetadataSource
 
-
 BUNDLED_FIXTURE = "acme_datalake.json"
 
 

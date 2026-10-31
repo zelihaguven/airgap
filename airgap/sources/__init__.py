@@ -1,7 +1,7 @@
 from airgap.sources.base import MetadataSource
-from airgap.sources.fixture import FixtureSource
 from airgap.sources.datahub import DataHubSource
 from airgap.sources.datahub_lite import DataHubLiteSource
+from airgap.sources.fixture import FixtureSource
 
 __all__ = [
     "MetadataSource",
